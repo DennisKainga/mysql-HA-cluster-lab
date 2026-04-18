@@ -1,56 +1,69 @@
 # Sophionic High-Availability MySQL Cluster Lab
-This laboratory environment establishes a production-grade, High-Availability (HA) MySQL infrastructure using **InnoDB Cluster** technology. It is designed to provide the database backbone for the Sophionic multi-tenant ERP system, ensuring zero data loss and automatic failover.
 
-## 1. Project Objective
-The goal of this lab was to move away from a single-point-of-failure database architecture. By utilizing **Group Replication**, we ensure that data is synchronously replicated across three nodes, allowing the system to tolerate the failure of at least one node without manual intervention or data corruption.
+This laboratory environment establishes a production-grade, High-Availability (HA) MySQL infrastructure using **MySQL InnoDB Cluster** technology. It is designed to provide the database backbone for the Sophionic multi-tenant ERP system, ensuring zero data loss and automatic failover.
+
+![MySQL InnoDB Cluster Architecture](https://i.imgur.com/G5nS4K8.png)
+*(Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication)*
+
+## 1. Project Objective & Official Standards
+The goal of this lab is to move away from single-point-of-failure architectures by implementing the official [MySQL InnoDB Cluster](https://www.mysql.com/products/cluster/) stack. 
+
+By utilizing **Group Replication**, we ensure that data is synchronously replicated across three nodes. This setup leverages:
+* **High Availability**: The system tolerates the failure of `(n-1)/2` nodes. In this 3-node lab, the system remains fully operational even if one node fails.
+* **Elasticity**: New nodes can be added to the cluster with minimal configuration using the Built-in Clone Service.
+* **Real-time Monitoring**: Integrated with MySQL Shell for advanced cluster administration.
 
 ## 2. Infrastructure Architecture
-The stack is composed of five specialized containers orchestrated via Docker Compose:
+The stack is orchestrated via Docker Compose, utilizing the official [MySQL Router Docker Implementation](https://dev.mysql.com/doc/mysql-router/8.0/en/mysql-router-installation-docker.html) guidelines:
 
-* **db1, db2, db3**: MySQL 8.0 nodes forming the InnoDB Cluster.
-* **mysql-router**: The intelligent layer-4 proxy that routes application traffic to the current Primary (Read/Write) or Secondaries (Read-Only).
-* **cluster-setup**: A transient automation container that uses MySQL Shell and JavaScript (`provision.js`) to bootstrap the cluster.
+* **db1, db2, db3**: MySQL 8.0 nodes forming the Group Replication core.
+* **mysql-router**: The intelligent layer-4 proxy. It handles "Metadata Caching" to track which node is the current `PRIMARY` (Read/Write) and which are `SECONDARY` (Read-Only).
+* **cluster-setup**: A transient automation container running MySQL Shell 8.0. It executes `provision.js` to handle the bootstrap logic.
 
 ## 3. Configuration Details
 
-### Database Nodes
-Each node is configured with specific InnoDB Cluster requirements:
-- **GTID Mode**: Enabled for consistent transaction tracking across the cluster.
-- **Enforce GTID Consistency**: Strict enforcement to prevent non-transactional updates that break replication.
-- **Transaction Write Set Extraction**: Uses `XXHASH64` for high-performance conflict detection during multi-master arbitration.
+### Database Nodes (The Engine)
+Each node follows the requirements for InnoDB Cluster consistency:
+- **GTID Mode**: `ON` (Global Transaction Identifiers) for consistent transaction tracking.
+- **Enforce GTID Consistency**: `ON` to ensure only cluster-safe operations are executed.
+- **Transaction Write Set Extraction**: Uses `XXHASH64` to identify and resolve conflicts during parallel replication.
+- **Binary Logs**: `ROW` format as required by Group Replication for deterministic data consistency.
+
+### MySQL Router (The Gateway)
+Following the [official Docker documentation](https://dev.mysql.com/doc/mysql-router/8.0/en/mysql-router-installation-docker.html), the Router is "bootstrapped" against the cluster. It provides:
+- **Port 6446**: Classic MySQL protocol for Read/Write traffic.
+- **Port 6447**: Classic MySQL protocol for Read-Only traffic (load-balanced).
+- **Metadata Cache**: Automatically updates the routing table when a failover occurs.
 
 ## 4. Key Modifications & Troubleshooting
-The following critical adjustments were made to the standard configuration to resolve performance and connectivity issues encountered during the lab:
+Standard "out-of-the-box" configurations often fail in Docker-bridged environments. The following "First Principles" modifications were implemented:
 
 ### A. Authentication Plugin "Handshake" Fix
-**Issue**: Tools like phpMyAdmin and Adminer experienced infinite "hanging" during login attempts through the Router.
-**Root Cause**: MySQL 8.0 defaults to `caching_sha2_password`, which requires a complex secure handshake that often stutters when proxied through a Docker-bridged Router.
-**Modification**: Reverted the default authentication to `mysql_native_password`. 
-```yaml
-command: ["mysqld", "--default-authentication-plugin=mysql_native_password", ...]
-```
+**Issue**: Tools like phpMyAdmin and Adminer experienced infinite "hanging" during login.
+**Root Cause**: MySQL 8.0 defaults to `caching_sha2_password`. The "double-hop" (Client -> Router -> DB) often stutters during the RSA key exchange in virtualized networks.
+**Modification**: Set `--default-authentication-plugin=mysql_native_password` in the `mysqld` startup command for all nodes.
 
-### B. DNS Resolution Optimization
-**Issue**: The Router logs showed "closed connection before finishing handshake" errors.
-**Modification**: Implemented `skip_name_resolve` on the database nodes. This prevents MySQL from attempting to perform reverse DNS lookups on incoming connections from the Docker network, significantly speeding up the handshake.
+### B. DNS Resolution Optimization (`skip_name_resolve`)
+**Issue**: Router logs showed `closed connection before finishing handshake`.
+**Modification**: MySQL nodes were configured with `skip_name_resolve`. This bypasses the overhead of reverse DNS lookups for internal Docker IP addresses (`172.18.x.x`), preventing handshake timeouts.
 
-### C. Router Persistence
-**Modification**: The Router is configured to bootstrap once and reuse the configuration. This prevents the "Keyring" conflicts that occur if a Router tries to re-register with an already initialized cluster.
+### C. Router Configuration Persistence
+**Modification**: Mounted a volume to `/tmp/mysqlrouter`. This ensures the Router retains its generated `keyring` and `mysqlrouter.conf` across restarts, preventing "Metadata out of sync" errors.
 
 ## 5. Automation Logic (`provision.js`)
-The `cluster-setup` container executes a JavaScript file via MySQL Shell that performs the following "First Principles" logic:
-1.  **Connect**: Establishes a session with `db1`.
-2.  **Detection**: Checks if `SophionicCluster` already exists in the metadata.
-3.  **Initialization**: If new, it runs `dba.configureInstance` on all nodes and executes `dba.createCluster`.
-4.  **Scaling**: Dynamically adds `db2` and `db3` using the `CLONE` recovery method, which is faster than traditional incremental recovery for new nodes.
-5.  **Termination**: The script utilizes `shell.exit(0)` upon completion to allow Docker to gracefully stop the setup container while the database remains online.
+The `cluster-setup` container follows this automated lifecycle:
+1.  **Handshake**: Establishes a session with the seed node (`db1`).
+2.  **Cluster Discovery**: Attempts `dba.getCluster('SophionicCluster')`. 
+3.  **Bootstrapping**: If missing, it runs `dba.configureInstance` on all targets to verify prerequisites.
+4.  **Cloning**: Adds `db2` and `db3` using the **Clone Recovery Method**, which physically copies the data files for near-instant synchronization.
+5.  **Graceful Exit**: Uses `shell.exit(0)` to signal to Docker Compose that the infrastructure is ready, allowing the `router` to start.
 
 ## 6. How to Use
-1.  **Start the Stack**: `docker compose up -d`
+1.  **Deploy**: `docker compose up -d`
 2.  **Access Management**: 
-    * **Direct Access**: Use `localhost:3306` (to `db1`) for high-level admin tasks.
-    * **Routed Access**: Use `localhost:6446` for Read/Write traffic (App traffic).
-3.  **Monitor Status**: 
+    * **Direct Access**: `localhost:3306` (Primary node only).
+    * **Routed Access (Recommended)**: `localhost:6446` (Always points to whichever node is currently the Primary).
+3.  **Verify HA Status**: 
     ```bash
     docker exec -it cluster-setup mysqlsh --uri root@db1:3306 --password=password --js -e "dba.getCluster('SophionicCluster').status()"
     ```
