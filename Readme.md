@@ -5,7 +5,7 @@ This laboratory environment establishes a production-grade, High-Availability (H
 <div align="center">
  <img src="/images/innodb_cluster_overview.png" 
      alt="MySQL InnoDB Cluster Architecture" 
-     style="height: 455px; width: 100%; object-fit: contain;">
+     style="height: 400px; width: 50%; object-fit: contain;">
   <p><i>Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication</i></p>
 </div>
 
