@@ -2,7 +2,7 @@
 
 This laboratory environment establishes a production-grade, High-Availability (HA) MySQL infrastructure using **MySQL InnoDB Cluster** technology. It is designed to Help practise networked database cluster setup.
 
-![MySQL InnoDB Cluster Architecture](https://i.imgur.com/G5nS4K8.png)
+![MySQL InnoDB Cluster Architecture](/images/innodb_cluster_overview.png)
 _(Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication)_
 
 ## 1. Project Objective & Official Standards
@@ -74,10 +74,11 @@ The `cluster-setup` container follows this automated lifecycle:
 ## 6. How to Use
 
 1.  **Deploy**: `docker compose up -d`
-2.  **Access Management**:
+2.  **Visualize**: on the browser visit `localhost:8080` This opens phpMyAdmin
+3.  **Access Management**:
     - **Direct Access**: `localhost:3306` (Primary node only).
     - **Routed Access (Recommended)**: `localhost:6446` (Always points to whichever node is currently the Primary).
-3.  **Verify HA Status**:
+4.  **Verify HA Status**:
     ```bash
     docker exec -it cluster-setup mysqlsh --uri root@db1:3306 --password=password --js -e "dba.getCluster('SophionicCluster').status()"
     ```
