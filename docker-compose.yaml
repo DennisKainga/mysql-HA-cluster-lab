@@ -2,64 +2,66 @@ services:
   db1: &mysql_base
     image: mysql/mysql-server:8.0
     networks:
-      - ndb-cluster-net
+      - cluster-net
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: "password"
       MYSQL_ROOT_HOST: "%"
-    command: [
-      "mysqld", 
-      "--server_id=1", 
-      "--binlog_checksum=NONE", 
-      "--gtid_mode=ON", 
-      "--enforce_gtid_consistency=ON",
-      "--master_info_repository=TABLE",
-      "--relay_log_info_repository=TABLE",
-      "--transaction_write_set_extraction=XXHASH64",
-      "--loose-group_replication_group_name=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-      "--default-authentication-plugin=mysql_native_password" 
-    ]
+    command:
+      [
+        "mysqld",
+        "--server_id=1",
+        "--binlog_checksum=NONE",
+        "--gtid_mode=ON",
+        "--enforce_gtid_consistency=ON",
+        "--master_info_repository=TABLE",
+        "--relay_log_info_repository=TABLE",
+        "--transaction_write_set_extraction=XXHASH64",
+        "--loose-group_replication_group_name=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "--default-authentication-plugin=mysql_native_password",
+      ]
 
   db2:
     <<: *mysql_base
     restart: always
-    command: [
-      "mysqld", 
-      "--server_id=2", 
-      "--binlog_checksum=NONE", 
-      "--gtid_mode=ON",
-      "--enforce_gtid_consistency=ON", 
-      "--master_info_repository=TABLE", 
-      "--relay_log_info_repository=TABLE", 
-      "--transaction_write_set_extraction=XXHASH64",
-      "--default-authentication-plugin=mysql_native_password"
-    ]
+    command:
+      [
+        "mysqld",
+        "--server_id=2",
+        "--binlog_checksum=NONE",
+        "--gtid_mode=ON",
+        "--enforce_gtid_consistency=ON",
+        "--master_info_repository=TABLE",
+        "--relay_log_info_repository=TABLE",
+        "--transaction_write_set_extraction=XXHASH64",
+        "--default-authentication-plugin=mysql_native_password",
+      ]
 
   db3:
     <<: *mysql_base
     restart: always
-    command: [
-      "mysqld", 
-      "--server_id=3", 
-      "--binlog_checksum=NONE", 
-      "--gtid_mode=ON", 
-      "--enforce_gtid_consistency=ON", 
-      "--master_info_repository=TABLE", 
-      "--relay_log_info_repository=TABLE", 
-      "--transaction_write_set_extraction=XXHASH64",
-      "--default-authentication-plugin=mysql_native_password"
-    ]
+    command:
+      [
+        "mysqld",
+        "--server_id=3",
+        "--binlog_checksum=NONE",
+        "--gtid_mode=ON",
+        "--enforce_gtid_consistency=ON",
+        "--master_info_repository=TABLE",
+        "--relay_log_info_repository=TABLE",
+        "--transaction_write_set_extraction=XXHASH64",
+        "--default-authentication-plugin=mysql_native_password",
+      ]
 
   cluster-setup:
     build: .
-    networks: [ndb-cluster-net]
+    networks: [cluster-net]
     depends_on: [db1, db2, db3]
-
 
   router:
     image: mysql/mysql-router:8.0
     networks:
-      - ndb-cluster-net
+      - cluster-net
     ports:
       - "6446:6446" # RW Port
       - "6447:6447" # RO Port
@@ -77,7 +79,7 @@ services:
   phpmyadmin:
     image: phpmyadmin
     networks:
-      - ndb-cluster-net
+      - cluster-net
     container_name: phpmyadmin
     links:
       - router
@@ -92,5 +94,5 @@ services:
       router:
         condition: service_healthy
 networks:
-  ndb-cluster-net:
+  cluster-net:
     driver: bridge
