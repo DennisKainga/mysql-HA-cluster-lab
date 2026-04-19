@@ -1,3 +1,4 @@
+name: MYSQL-HA-CORE
 services:
   db1: &mysql_base
     image: mysql/mysql-server:8.0
@@ -93,6 +94,8 @@ services:
     depends_on:
       router:
         condition: service_healthy
+
 networks:
   cluster-net:
+    name: cluster-shared-net # Force a global name
     driver: bridge

@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s # Fast updates for your lab experiments
+
+scrape_configs:
+  - job_name: "mysql-cluster"
+    static_configs:
+      - targets: ["db1-exporter:9104", "db2-exporter:9104", "db3-exporter:9104"]

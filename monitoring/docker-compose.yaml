@@ -1,0 +1,40 @@
+name: MYSQL-HA-MONITORING
+services:
+  db1-exporter:
+    image: prom/mysqld-exporter
+    environment:
+      - DATA_SOURCE_NAME=root:password@(db1:3306)/
+    networks: [cluster-net]
+
+  db2-exporter:
+    image: prom/mysqld-exporter
+    environment:
+      - DATA_SOURCE_NAME=root:password@(db2:3306)/
+    networks: [cluster-net]
+
+  db3-exporter:
+    image: prom/mysqld-exporter
+    environment:
+      - DATA_SOURCE_NAME=root:password@(db3:3306)/
+    networks: [cluster-net]
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks: [cluster-net]
+    ports:
+      - "9090:9090"
+
+  # The Visualization Layer (The Dashboard)
+  grafana:
+    image: grafana/grafana
+    networks: [cluster-net]
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+networks:
+  cluster-net:
+    external: true
+    name: cluster-shared-net
