@@ -112,7 +112,12 @@ To verify that the data is truly replicated, visit **phpMyAdmin** at `localhost:
 
 1. Use the **Server Choice** dropdown to select `db1`.
 2. Check the `library_lab` tables.
-3. Log out and Switch the dropdown to `db2` or `db3`. You will see the **exact same data**, proving that Group Replication is working in the background.
+3. Switch the dropdown to `db2` or `db3`. You will see the **exact same data**, proving that Group Replication is working in the background.
+<div align="center">
+ <img src="/images/select_server.png" 
+     alt="MySQL InnoDB Cluster Architecture" 
+     style="height: 280px; width: 50%; object-fit: contain;">
+</div>
 
 ---
 
@@ -131,8 +136,7 @@ The InnoDB Cluster enforces a "Single-Primary" mode by default.
 <div align="center">
  <img src="/images/writeprotect.png" 
      alt="MySQL InnoDB Cluster Architecture" 
-     style="height: 200px; width: 50%; object-fit: contain;">
-  <p><i>Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication</i></p>
+     style="height: 280px; width: 50%; object-fit: contain;">
 </div>
 
 ### Test 2: Automatic Failover & Zero Downtime

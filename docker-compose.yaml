@@ -85,7 +85,7 @@ services:
     links:
       - router
     environment:
-      - PMA_PORTS=3306,6446
+      - PMA_PORTS=6446,3306,3306,3306
       - PMA_HOSTS=router,db1,db2,db3
       - PMA_VERBOSE=router,db1,db2,db3
     ports:
