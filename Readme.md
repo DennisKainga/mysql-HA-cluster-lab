@@ -29,7 +29,7 @@ This laboratory environment establishes a production-grade, High-Availability (H
 
 ## 1. Project Objective & Official Standards
 
-The goal of this lab is to move away from single-point-of-failure architectures by implementing the official [MySQL InnoDB Cluster](https://www.mysql.com/products/cluster/) stack.
+The goal of this lab is to move away from single-point-of-failure architectures by implementing the official [MySQL InnoDB Cluster](https://dev.mysql.com/doc/mysql-shell/9.6/en/mysql-innodb-cluster.html) stack.
 
 By utilizing **Group Replication**, we ensure that data is synchronously replicated across three nodes. This setup leverages:
 
