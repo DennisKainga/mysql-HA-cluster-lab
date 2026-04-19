@@ -60,6 +60,7 @@ services:
 
   router:
     image: mysql/mysql-router:8.0
+    container_name: mysql-router
     networks:
       - cluster-net
     ports:
@@ -84,10 +85,9 @@ services:
     links:
       - router
     environment:
-      - PMA_HOST=router
-      - PMA_PORT=6446
-      - PMA_USER=root
-      - PMA_PASSWORD=password
+      - PMA_PORTS=3306,6446
+      - PMA_HOSTS=router,db1,db2,db3
+      - PMA_VERBOSE=router,db1,db2,db3
     ports:
       - "8080:80"
     depends_on:

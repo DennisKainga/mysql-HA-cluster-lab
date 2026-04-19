@@ -93,14 +93,60 @@ The `cluster-setup` container follows this automated lifecycle:
 4. **Cloning**: Adds `db2` and `db3` using the **Clone Recovery Method** for near-instant synchronization.
 5. **Graceful Exit**: Uses `shell.exit(0)` to signal that infrastructure is ready, allowing the `router` to start.
 
-## 6. How to Use
+## 6. How to Use & Seed Data
 
-1. **Deploy**: `docker compose up -d`
-2. **Visualize**: Visit `localhost:8080` in your browser to access **phpMyAdmin**.
-3. **Access Management**:
-   - **Direct Access**: `localhost:3306` (Primary node only).
-   - **Routed Access (Recommended)**: `localhost:6446` (Always points to whichever node is currently the Primary).
-4. **Verify HA Status**:
+### A. Seeding the Cluster
+
+The lab includes a `Makefile` to automate the creation of the `library_lab` database (Authors, Books, and Comments).
+
+1. **Deploy the stack**: `docker compose up -d`
+2. **Run the seed command**:
    ```bash
-   docker exec -it cluster-setup mysqlsh --uri root@db1:3306 --password=password --js -e "dba.getCluster('SophionicCluster').status()"
+   make seed
    ```
+   _This command pipes `demo.sql` through the **Router (Port 6446)**. The Router identifies the current Primary node and ensures the write is replicated across the entire cluster._
+
+### B. Visualizing Data Consistency
+
+To verify that the data is truly replicated, visit **phpMyAdmin** at `localhost:8080`.
+
+1. Use the **Server Choice** dropdown to select `db1`.
+2. Check the `library_lab` tables.
+3. Log out and Switch the dropdown to `db2` or `db3`. You will see the **exact same data**, proving that Group Replication is working in the background.
+
+---
+
+## 7. Validating High Availability (The "Stress Test")
+
+To truly understand how the the Cluster protects your data, perform the following architectural tests:
+
+### Test 1: Write Protection on Secondaries (Slaves)
+
+The InnoDB Cluster enforces a "Single-Primary" mode by default.
+
+- **Action**: Log into `db2` or `db3` via phpMyAdmin and try to manually insert a row into the `authors` table.
+- **Expected Result**: MySQL will throw an error:
+  `ERROR 1290 (HY000): The MySQL server is running with the --super-read-only option so it cannot execute this statement.`
+- **Lesson**: This prevents data drift. All writes **must** go through the Router or the designated Primary.
+<div align="center">
+ <img src="/images/writeprotect.png" 
+     alt="MySQL InnoDB Cluster Architecture" 
+     style="height: 200px; width: 50%; object-fit: contain;">
+  <p><i>Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication</i></p>
+</div>
+
+### Test 2: Automatic Failover & Zero Downtime
+
+- **Action**: Stop the current Primary node (e.g., `docker stop db1`).
+- **Observation**:
+  1. Use `make status` to see the cluster state. You will notice `db1` is "OFFLINE" and either `db2` or `db3` has been automatically promoted to **PRIMARY**.
+  2. Access the data via the **Router (Port 6446)**.
+- **Expected Result**: Your application remains fully functional. The Router automatically re-routes your connection to the new Primary in milliseconds.
+- **Lesson**: Your data remains accessible and writable even during hardware failure.
+
+### Test 3: Self-Healing Cluster
+
+- **Action**: Restart the stopped node: `docker start db1`.
+- **Observation**: The node will move from "OFFLINE" to "RECOVERING" and finally back to "ONLINE".
+- **Expected Result**: `db1` will automatically pull any missing transactions from the other nodes (via the Clone Service) to catch up.
+- **Lesson**: The cluster is self-healing; manual data restoration is not required.
