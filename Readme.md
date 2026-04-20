@@ -2,16 +2,12 @@
 
 This laboratory environment establishes a production-grade, High-Availability (HA) MySQL infrastructure using **MySQL InnoDB Cluster** technology. It is designed to help practice networked database cluster setups.
 
-<!-- <div align="center">
+<div align="center">
  <img src="/images/innodb_cluster_overview.png" 
      alt="MySQL InnoDB Cluster Architecture" 
      style="height: 400px; width: 50%; object-fit: contain;">
   <p><i>Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication</i></p>
-</div> -->
-<p align="center">
-  <img src="/images/innodb_cluster_overview.png" alt="Docker banner" style="max-width: 100%; width: 600px;" />
- <i>Standard InnoDB Cluster Topology: MySQL Shell, MySQL Router, and Group Replication</i>
-</p>
+</div> 
 ---
 
 ## Table of Contents
